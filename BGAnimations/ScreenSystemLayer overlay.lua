@@ -601,5 +601,75 @@ t[#t+1] = Def.ActorFrame {
 	}
 }
 -- -----------------------------------------------------------------------
+-- ===========================================================================
+-- AUTO-PROFILE AUTOPILOT  (temporary; for profiling with no keypresses)
+--
+-- Walks the menus automatically into gameplay, then quits the app when the
+-- song ends -- so the engine can be profiled from launch to exit hands-free.
+-- The chart is played by a human controller with no input (it just sits
+-- there); failing out is fine and not handled here.
+--
+-- To restore normal behavior, set AUTO_PROFILE = false below or delete this
+-- block. NOTE: this flips the engine "MenuTimer" preference; if you want it
+-- back afterward, reset it in Options (or Save/Preferences.ini) once you
+-- remove this.
+-- ===========================================================================
+local AUTO_PROFILE = true
+
+if AUTO_PROFILE then
+	-- Enable the menu timer so every SL select screen auto-advances using its
+	-- default choice (custom screens like Color/Style watch this pref to
+	-- auto-"Finish"; C++ screens get an automatic MenuStart on timer expiry).
+	-- Set early (file load) so it's in effect before any screen.
+	PREFSMAN:SetPreference("MenuTimer", true)
+
+	t[#t+1] = Def.Actor{
+		ScreenChangedMessageCommand=function(self)
+			local screen = SCREENMAN:GetTopScreen()
+			if not screen then return end
+			local name = screen:GetName()
+
+			-- When gameplay starts, quit as soon as the song finishes
+			-- instead of advancing to Evaluation.
+			if name == "ScreenGameplay" or name == "ScreenGameplayShared" then
+				screen:SetNextScreenName("ScreenExit")
+				return
+			end
+
+			-- Leave these alone: ScreenInit advances on its own timer, and we
+			-- quit before ever reaching Evaluation/Exit. (The engine-level
+			-- fast-forward already makes ScreenInit quick.)
+			if name == "ScreenInit" or name == "ScreenExit"
+			or name:find("^ScreenEvaluation") then
+				return
+			end
+
+			-- A player must be joined or the menu-timer's MenuStart
+			-- (FOREACH_HumanPlayer) -- and several screens -- are no-ops.
+			if GAMESTATE:GetNumSidesJoined() == 0 then
+				GAMESTATE:JoinPlayer(PLAYER_1)
+			end
+
+			-- When the screen has its own menu timer, just shorten it: that
+			-- selects correctly AND fires SM_MenuTimer exactly once. Firing it
+			-- again after ScreenSelectMusic has *finalized* its selection
+			-- re-enters its MenuStart state machine (m_SelectionState=2) and
+			-- crashes via DEFAULT_FAIL -- so don't post it manually here. Only
+			-- timer-less screens (e.g. ScreenTitleMenu) get a manual
+			-- SM_MenuTimer, posted a few times to ride out the intro input
+			-- lock; those screens reject the repeats harmlessly.
+			local timer = screen:GetChild("Timer")
+			if timer then
+				timer:SetSeconds(1)
+			else
+				screen:PostScreenMessage("SM_MenuTimer", 0.5)
+				screen:PostScreenMessage("SM_MenuTimer", 1.5)
+				screen:PostScreenMessage("SM_MenuTimer", 3.0)
+			end
+		end,
+	}
+end
+
+-- -----------------------------------------------------------------------
 
 return t

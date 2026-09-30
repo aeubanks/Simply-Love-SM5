@@ -13,7 +13,7 @@ return LoadFont("Common Bold")..{
 	CoinModeChangedMessageCommand=function(self) self:queuecommand("Refresh") end,
 
 	RefreshCommand=function(self)
-		self:visible( not IsHome() )
+		self:visible( false )
 
 		if GAMESTATE:GetCoinMode() == "CoinMode_Free" then
 		 	self:settext( THEME:GetString("ScreenTitleJoin", "Press Start") )

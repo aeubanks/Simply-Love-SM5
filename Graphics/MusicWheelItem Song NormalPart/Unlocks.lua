@@ -21,9 +21,9 @@ local af = Def.ActorFrame {
                 self:diffuse(Color.Orange)
             end
             if #GAMESTATE:GetHumanPlayers() > 1 then
-                self:x(-12)
+                self:x(-_screen.w/6.04 + 16)
             else
-                self:x(-15)
+                self:x(-_screen.w/6.04 + 18)
             end
             self:Load( THEME:GetPathG("", "lock.png") )
         end,

@@ -1,8 +1,6 @@
-local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
--- subtract 2 from the total number of MusicWheelItems
--- one MusicWheelItem will be offsceen above, one will be offscreen below
-local num_visible_items = num_items - 2
+-- The highlight for the selected MusicWheel item.  It lives at the wheel
+-- origin, which is the vertex of the V (see [MusicWheel] ItemTransformFunction).
+local item_width = _screen.w / 3.02
+local item_height = _screen.h / 16
 
-local item_width = _screen.w / 2.125
-
-return Def.Quad{ InitCommand=function(self) self:horizalign(left):x(WideScale(28,33)):zoomto(item_width,_screen.h/num_visible_items-1) end }
+return Def.Quad{ InitCommand=function(self) self:horizalign(center):x(0):zoomto(item_width, item_height - 1) end }

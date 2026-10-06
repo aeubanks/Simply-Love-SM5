@@ -5,9 +5,13 @@ if GAMESTATE:IsCourseMode() then return end
 
 local GetStepsToDisplay = LoadActor("./StepsToDisplay.lua")
 local autoStyle = ThemePrefs.Get("PreferredStyle")=="auto"
+-- size of each difficulty block
+local box, spacing = 40, 2
 local t = Def.ActorFrame{
 	Name="StepsDisplayList",
-	InitCommand=function(self) self:xy(_screen.cx-26, _screen.cy + 67) end,
+	-- Difficulty column now sits at the bottom centre, in the gap between the
+	-- two shrunken player panes.
+	InitCommand=function(self) self:xy(_screen.cx, _screen.cy + 102) end,
 
 	OnCommand=function(self)                           self:queuecommand("RedrawStepsDisplay") end,
 	CurrentSongChangedMessageCommand=function(self)    self:queuecommand("RedrawStepsDisplay") end,
@@ -49,7 +53,8 @@ local t = Def.ActorFrame{
 t[#t+1] = Def.Quad{
 	Name="Background",
 	InitCommand=function(self)
-		self:diffuse(color("#1e282f")):zoomto(32,152)
+		-- +4 on the height gives the same 2px margin above/below as beside the boxes
+		self:diffuse(color("#1e282f")):zoomto(box + 4, 5*box + 4*spacing + 4)
 		if ThemePrefs.Get("RainbowMode") then
 			self:diffusealpha(0.9)
 		end
@@ -68,9 +73,7 @@ for RowNumber=-2, 2 do
 	Grid[#Grid+1] = Def.Quad{
 		Name="MeterBackground_"..(RowNumber + 3),
 		InitCommand=function(self)
-			local height = 28
-			local spacing = 2
-			self:diffuse(color("#0f0f0f")):zoomto(height, height):y((height+spacing)*RowNumber)
+			self:diffuse(color("#0f0f0f")):zoomto(box, box):y((box+spacing)*RowNumber)
 			if ThemePrefs.Get("RainbowMode") then
 				self:diffusealpha(0.9)
 			end
@@ -80,9 +83,7 @@ for RowNumber=-2, 2 do
 	Grid[#Grid+1] = LoadFont("Common Bold")..{
 		Name="Meter_"..(RowNumber + 3),
 		InitCommand=function(self)
-			local height = 28
-			local spacing = 2
-			self:y((height+spacing)*RowNumber):zoom(0.45)
+			self:y((box+spacing)*RowNumber):zoom(0.64)
 		end,
 		SetCommand=function(self, params)
 			-- diffuse and set each chart's difficulty meter

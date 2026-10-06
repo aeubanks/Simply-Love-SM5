@@ -13,12 +13,13 @@ local GlobalOffsetSeconds = PREFSMAN:GetPreference("GlobalOffsetSeconds")
 local auto_style = ThemePrefs.Get("PreferredStyle") == "auto"
 local RowIndex = 1
 
-return Def.Sprite{
-	Texture=THEME:GetPathB("ScreenSelectMusic", "overlay/PerPlayer/arrow.png"),
+local arrowTexture = THEME:GetPathB("ScreenSelectMusic", "overlay/PerPlayer/arrow.png")
+
+local cursor = Def.ActorFrame{
 	Name="Cursor"..pn,
 	InitCommand=function(self)
 		self:visible( GAMESTATE:IsHumanPlayer(player) and not auto_style )
-		self:halign( p ):zoom(0.575)
+		self:zoom(0.75)
 		-- FIXME: SM5.1-beta's EffectClock enum includes constants for
 		--   CLOCK_BGM_BEAT_PLAYER1 and CLOCK_BGM_BEAT_PLAYER2 but
 		--   but effectclock(), the only method currently available via
@@ -39,12 +40,18 @@ return Def.Sprite{
 		--   one or both are joined.  This would need to be fixed in the engine.
 		self:bounce():effectclock("beatnooffset")
 
+		-- The difficulty grid is centred on _screen.cx in the V layout; keep the
+		-- cursors at their original offsets relative to the grid.
+		-- arrow.png has asymmetric padding, so the mirrored P2 needs a different
+		-- actor offset from P1 to end up symmetric.  At zoom 0.75 the P1 bbox is
+		-- actor+[6.75,14.25] and the mirrored P2 bbox is actor+[9.75,17.25].
+		-- These two offsets make both boxes mirror images just outside the blocks.
 		if player == PLAYER_1 then
-			self:x( IsUsingWideScreen() and _screen.cx-53 or 267)
+			self:x( _screen.cx - 36 )
 			self:effectmagnitude(-3,0,0)
 		elseif player == PLAYER_2 then
 			self:rotationz(180)
-			self:x(IsUsingWideScreen() and _screen.cx-17 or 303)
+			self:x( _screen.cx + 12 )
 			self:effectmagnitude(3,0,0)
 		end
 
@@ -68,19 +75,24 @@ return Def.Sprite{
 	SetCommand=function(self)
 		local song = GAMESTATE:GetCurrentSong()
 
-		if song then
-			local playable_steps = SongUtil.GetPlayableSteps( song )
-			local current_steps = GAMESTATE:GetCurrentSteps(player)
-			if song and FindInTable(song, SL[pn].Favorites) then 
-				self:diffuse(color("#ffc0cb"))
-			else
-				self:diffuse(1,1,1,1) 
-			end
-			for i,chart in pairs( GetStepsToDisplay(playable_steps) ) do
-				if chart == current_steps then
-					RowIndex = i
-					break
-				end
+		-- hide the difficulty cursor while hovering a folder / group
+		if not song then
+			self:visible(false)
+			return
+		end
+		self:visible(GAMESTATE:IsHumanPlayer(player) and not auto_style)
+
+		local playable_steps = SongUtil.GetPlayableSteps( song )
+		local current_steps = GAMESTATE:GetCurrentSteps(player)
+		if FindInTable(song, SL[pn].Favorites) then 
+			self:diffuse(color("#ffc0cb"))
+		else
+			self:diffuse(1,1,1,1) 
+		end
+		for i,chart in pairs( GetStepsToDisplay(playable_steps) ) do
+			if chart == current_steps then
+				RowIndex = i
+				break
 			end
 		end
 
@@ -95,3 +107,21 @@ return Def.Sprite{
 		end
 	end
 }
+
+-- Black outline: draw offset copies of the arrow behind the main sprite so the
+-- selected-difficulty cursor reads clearly against the difficulty blocks.
+for _, o in ipairs({ {-2,0}, {2,0}, {0,-2}, {0,2}, {-2,-2}, {-2,2}, {2,-2}, {2,2} }) do
+	local ox, oy = o[1], o[2]
+	cursor[#cursor+1] = Def.Sprite{
+		Texture=arrowTexture,
+		InitCommand=function(self) self:halign( p ):xy(ox, oy):diffuse(0,0,0,1) end,
+	}
+end
+
+-- main arrow, tinted by SetCommand on the parent frame
+cursor[#cursor+1] = Def.Sprite{
+	Texture=arrowTexture,
+	InitCommand=function(self) self:halign( p ) end,
+}
+
+return cursor

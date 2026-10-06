@@ -2,6 +2,28 @@ local player = ...
 local pn = ToEnumShortString(player)
 local p = PlayerNumber:Reverse()[player]
 
+-- Resting position of this player's step-artist strip, and which way it slides
+-- in when a player joins.  Absolute coordinates (rather than a relative addy)
+-- keep the resting position stable even if "Appear" is queued more than once.
+-- The STEPS strip sits flush under the density graph (its bottom = the
+-- graph's top) and its inner edge lines up with the graph's centre-side edge.
+-- (The strip's background quad spans local x 25.5..200.5.)
+local final_y = _screen.cy + 24 - _screen.h/56
+local slide = (player == PLAYER_1) and 30 or -30
+local graph_inner = (player == PLAYER_1) and (_screen.w*0.5 - 60) or (_screen.w*0.5 + 60)
+local final_x = (player == PLAYER_1) and (graph_inner - 200.5) or (graph_inner - 25.5)
+
+-- Colours the STEPS / chart-description strip for the current chart's
+-- difficulty (or the player colour if no chart is selected yet).
+local function SetStepArtistBackground(quad)
+	local StepsOrTrail = GAMESTATE:IsCourseMode() and GAMESTATE:GetCurrentTrail(player) or GAMESTATE:GetCurrentSteps(player)
+	if StepsOrTrail then
+		quad:diffuse( DifficultyColor(StepsOrTrail:GetDifficulty()) )
+	else
+		quad:diffuse( PlayerColor(player) )
+	end
+end
+
 local text_table, marquee_index
 
 return Def.ActorFrame{
@@ -23,40 +45,26 @@ return Def.ActorFrame{
 	-- animation is left here as a reminder to a future me to maybe look into it.
 	PlayerUnjoinedMessageCommand=function(self, params)
 		if params.Player == player then
-			self:ease(0.5, 275):addy(scale(p,0,1,1,-1) * 30):diffusealpha(0)
+			self:stoptweening():ease(0.5, 275):y(final_y + slide):diffusealpha(0)
 		end
 	end,
 
 	-- depending on the value of pn, this will either become
 	-- an AppearP1Command or an AppearP2Command when the screen initializes
-	["Appear"..pn.."Command"]=function(self) self:visible(true):ease(0.5, 275):addy(scale(p,0,1,-1,1) * 30) end,
+	-- Do NOT call stoptweening() here: queued commands (like the "Reset" queued
+	-- by OnCommand) are stored as zero-duration tweens, so stoptweening would
+	-- cancel them and leave the background stuck on its initial black colour
+	-- until the next song change.
+	["Appear"..pn.."Command"]=function(self)
+		self:xy(final_x, final_y + slide)
+		self:visible(true):ease(0.5, 275):y(final_y):diffusealpha(1)
+	end,
 
+	-- In the U-shaped layout each player's chart info lives in their own
+	-- bottom corner: P1 bottom-left, P2 bottom-right.
 	InitCommand=function(self)
 		self:visible( false ):halign( p )
-
-		if player == PLAYER_1 then
-
-			if GAMESTATE:IsCourseMode() then
-				self:x( _screen.cx - (IsUsingWideScreen() and 356 or 346))
-				self:y(_screen.cy + 32)
-			else
-				self:x( _screen.cx - (IsUsingWideScreen() and 356 or 346))
-				self:y(_screen.cy + 12)	
-			end
-
-		elseif player == PLAYER_2 then
-
-			if GAMESTATE:IsCourseMode() then
-				self:x( _screen.cx - 210)
-				self:y(_screen.cy + 85)
-			elseif ThemePrefs.Get("PreferredStyle")=="auto" then
-				self:x( _screen.cx - 210)
-				self:y(_screen.cy + 28)
-			else
-				self:x( _screen.cx - 244)
-				self:y(_screen.cy + 40)
-			end
-		end
+		self:xy(final_x, final_y)
 
 		if GAMESTATE:IsHumanPlayer(player) then
 			self:queuecommand("Appear" .. pn)
@@ -66,17 +74,8 @@ return Def.ActorFrame{
 	-- colored background quad
 	Def.Quad{
 		Name="BackgroundQuad",
-		InitCommand=function(self) self:zoomto(175, _screen.h/28):x(113):diffuse(color("#000000")) end,
-		ResetCommand=function(self)
-			local StepsOrTrail = GAMESTATE:IsCourseMode() and GAMESTATE:GetCurrentTrail(player) or GAMESTATE:GetCurrentSteps(player)
-
-			if StepsOrTrail then
-				local difficulty = StepsOrTrail:GetDifficulty()
-				self:diffuse( DifficultyColor(difficulty) )
-			else
-				self:diffuse( PlayerColor(player) )
-			end
-		end
+		InitCommand=function(self) self:zoomto(175, _screen.h/28):x(113) SetStepArtistBackground(self) end,
+		ResetCommand=function(self) SetStepArtistBackground(self) end
 	},
 
 	--STEPS label

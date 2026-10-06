@@ -6,7 +6,8 @@ local machine_profile = PROFILEMAN:GetMachineProfile()
 local footer_height = 32
 
 -- height of the PaneDisplay in pixels
-local pane_height = 60
+-- (7 rows: 3 radar rows + 3 tech-count rows + Peak NPS)
+local pane_height = 120
 
 local text_zoom = WideScale(0.8, 0.9)
 
@@ -227,31 +228,33 @@ local GetScoresRequestProcessor = function(res, params)
 end
 
 -- -----------------------------------------------------------------------
--- define the x positions of four columns, and the y positions of three rows of PaneItems
+-- x positions of the columns, and y positions of the rows, of the PaneItems:
+--   col[1] = radar counts, col[2] = tech counts, col[3] = high scores
 local pos = {
-	col = { WideScale(-104,-133), WideScale(-36,-38), WideScale(54,76), WideScale(150, 190) },
-	row = { 13, 31, 49 }
+	-- The radar column sits just left of the tech column: its values are short,
+	-- and the only long value (Total Stream) is on row 7 where column 1 is empty.
+	col = { WideScale(-90,-130), WideScale(-38,-52), WideScale(108,122) },
+	row = { 13, 29, 45, 61, 77, 93, 109 }
 }
-
-local num_rows = 3
-local num_cols = 2
 
 -- HighScores handled as special cases for now until further refactoring
 local PaneItems = {
-	-- first row
-	{ name=THEME:GetString("RadarCategory","Taps"),  rc='RadarCategory_TapsAndHolds'},
-	{ name=THEME:GetString("RadarCategory","Mines"), rc='RadarCategory_Mines'},
-	-- { name=THEME:GetString("ScreenSelectMusic","NPS") },
+	-- column 1: radar counts (steps, jumps, holds, mines, hands, rolls)
+	{ name=THEME:GetString("RadarCategory","Taps"),  rc='RadarCategory_TapsAndHolds', col=1, row=1 },
+	{ name=THEME:GetString("RadarCategory","Jumps"), rc='RadarCategory_Jumps',        col=1, row=2 },
+	{ name=THEME:GetString("RadarCategory","Holds"), rc='RadarCategory_Holds',        col=1, row=3 },
+	{ name=THEME:GetString("RadarCategory","Mines"), rc='RadarCategory_Mines',        col=1, row=4 },
+	{ name=THEME:GetString("RadarCategory","Hands"), rc='RadarCategory_Hands',        col=1, row=5 },
+	{ name=THEME:GetString("RadarCategory","Rolls"), rc='RadarCategory_Rolls',        col=1, row=6 },
 
-	-- second row
-	{ name=THEME:GetString("RadarCategory","Jumps"), rc='RadarCategory_Jumps'},
-	{ name=THEME:GetString("RadarCategory","Hands"), rc='RadarCategory_Hands'},
-	-- { name=THEME:GetString("RadarCategory","Lifts"), rc='RadarCategory_Lifts'},
-
-	-- third row
-	{ name=THEME:GetString("RadarCategory","Holds"), rc='RadarCategory_Holds'},
-	{ name=THEME:GetString("RadarCategory","Rolls"), rc='RadarCategory_Rolls'},
-	-- { name=THEME:GetString("RadarCategory","Fakes"), rc='RadarCategory_Fakes'},
+	-- column 2: tech counts (folded in from the density-graph panel)
+	{ name=THEME:GetString("TechCategory","Brackets"),     stream="Brackets",     col=2, row=1 },
+	{ name=THEME:GetString("TechCategory","Footswitches"), stream="Footswitches", col=2, row=2 },
+	{ name=THEME:GetString("TechCategory","Crossovers"),   stream="Crossovers",   col=2, row=3 },
+	{ name=THEME:GetString("TechCategory","Sideswitches"), stream="Sideswitches", col=2, row=4 },
+	{ name=THEME:GetString("TechCategory","Jacks"),        stream="Jacks",        col=2, row=5 },
+	{ name=THEME:GetString(Branch.GameplayScreen(),"PeakNPS"), peak=true,         col=2, row=6 },
+	{ name=THEME:GetString("TechCategory","Total Stream"), stream="TotalStream",  col=2, row=7 },
 }
 
 -- -----------------------------------------------------------------------
@@ -328,10 +331,12 @@ for player in ivalues(PlayerNumber) do
 	af2.InitCommand=function(self)
 		self:visible(GAMESTATE:IsHumanPlayer(player))
 
+		-- Pulled outward and narrowed so the difficulty column can sit in the
+		-- centre gap between the two panes.
 		if player == PLAYER_1 then
-			self:x(_screen.w * 0.25 - 5)
+			self:x(_screen.w * 0.25 - 30)
 		elseif player == PLAYER_2 then
-			self:x(_screen.w * 0.75 + 5)
+			self:x(_screen.w * 0.75 + 30)
 		end
 
 		self:y(_screen.h - footer_height - pane_height)
@@ -362,6 +367,7 @@ for player in ivalues(PlayerNumber) do
 	af2.HideCommand=function(self) self:visible(false) end
 
 	af2.OnCommand=function(self)                                    self:playcommand("Set") end
+	af2.ChartParsedMessageCommand=function(self)                    self:playcommand("Set") end
 	af2.SLGameModeChangedMessageCommand=function(self)              self:playcommand("Set") end
 	af2.CurrentCourseChangedMessageCommand=function(self)			self:playcommand("Set") end
 	af2.CurrentSongChangedMessageCommand=function(self)				self:playcommand("Set") end
@@ -374,7 +380,7 @@ for player in ivalues(PlayerNumber) do
 	af2[#af2+1] = Def.Quad{
 		Name="BackgroundQuad",
 		InitCommand=function(self)
-			self:zoomtowidth(_screen.w/2-10)
+			self:zoomtowidth(_screen.w/2-60)
 			self:zoomtoheight(pane_height)
 			self:vertalign(top)
 		end,
@@ -395,7 +401,7 @@ for player in ivalues(PlayerNumber) do
 	-- tabs along the top of the PaneDisplay, one per available stepchart
 
 	if ThemePrefs.Get("PreferredStyle")=="auto" then
-		af2[#af2+1] = LoadActor("./StepsDisplayList/TabbedStepchartList/default.lua", {player, _screen.w/2 - 10})
+		af2[#af2+1] = LoadActor("./StepsDisplayList/TabbedStepchartList/default.lua", {player, _screen.w/2 - 60})
 	end
 
 	-- -----------------------------------------------------------------------
@@ -404,8 +410,8 @@ for player in ivalues(PlayerNumber) do
 
 	for i, item in ipairs(PaneItems) do
 
-		local col = ((i-1)%num_cols) + 1
-		local row = math.floor((i-1)/num_cols) + 1
+		local col = item.col
+		local row = item.row
 
 		af2[#af2+1] = Def.ActorFrame{
 
@@ -420,9 +426,37 @@ for player in ivalues(PlayerNumber) do
 				end,
 
 				SetCommand=function(self)
+					-- Hovering a folder (or otherwise having no chart) shows "?" for
+					-- every stat, including the tech counts and Peak NPS.
 					local SongOrCourse, StepsOrTrail = GetSongAndSteps(player)
 					if not SongOrCourse then self:settext("?"); return end
 					if not StepsOrTrail then self:settext("");  return end
+
+					-- Peak NPS
+					if item.peak then
+						if SL[pn].Streams.PeakNPS and SL[pn].Streams.PeakNPS > 0 then
+							self:settext(("%.1f"):format(SL[pn].Streams.PeakNPS * SL.Global.ActiveModifiers.MusicRate))
+						else
+							self:settext("")
+						end
+						return
+					end
+
+					-- tech-count items read from the parsed chart (SL[pn].Streams)
+					if item.stream then
+						if item.stream == "TotalStream" then
+							local streamMeasures, breakMeasures = GetTotalStreamAndBreakMeasures(pn)
+							local totalMeasures = streamMeasures + breakMeasures
+							if streamMeasures == 0 or totalMeasures == 0 then
+								self:settext(THEME:GetString("SLPlayerOptions", "None") .. " (0.0%)")
+							else
+								self:settext(string.format("%d/%d (%0.1f%%)", streamMeasures, totalMeasures, streamMeasures/totalMeasures*100))
+							end
+						else
+							self:settext(tostring(SL[pn].Streams[item.stream] or ""))
+						end
+						return
+					end
 
 					if item.rc then
 						local val = StepsOrTrail:GetRadarValues(player):GetValue( item.rc )
@@ -560,29 +594,6 @@ for player in ivalues(PlayerNumber) do
 		SetCommand=function(self)
 			self:settext(THEME:GetString("GrooveStats", "Loading"))
 			self:visible(false)
-		end
-	}
-
-	-- Chart Difficulty Meter
-	af2[#af2+1] = LoadFont("Wendy/_wendy small")..{
-		Name="DifficultyMeter",
-		InitCommand=function(self)
-			self:horizalign(right):diffuse(Color.Black)
-			self:xy(pos.col[4], pos.row[2])
-			if not IsUsingWideScreen() then self:maxwidth(66) end
-			self:queuecommand("Set")
-		end,
-		SetCommand=function(self)
-			-- Hide the difficulty number if we're connected.
-			if IsServiceAllowed(SL.GrooveStats.GetScores) then
-				self:visible(false)
-			end
-
-			local SongOrCourse, StepsOrTrail = GetSongAndSteps(player)
-			if not SongOrCourse then self:settext("") return end
-			local meter = StepsOrTrail and StepsOrTrail:GetMeter() or "?"
-
-			self:settext( meter )
 		end
 	}
 

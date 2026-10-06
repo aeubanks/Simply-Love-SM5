@@ -1,22 +1,18 @@
-local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
--- subtract 2 from the total number of MusicWheelItems
--- one MusicWheelItem will be offsceen above, one will be offscreen below
-local num_visible_items = num_items - 2
-
-local item_width = _screen.w / 2.125
+-- Geometry for one MusicWheel item in the U-shaped wheel.
+-- The card is centred on the wheel origin; the ItemTransformFunction in
+-- metrics.ini [MusicWheel] places that origin along the V.
+local item_width = _screen.w / 3.02
+local item_height = _screen.h / 16
 
 return Def.ActorFrame {
-    -- the MusicWheel is centered via metrics under [ScreenSelectMusic]; offset by a slight amount to the right here
-    InitCommand = function(self) self:x(WideScale(28, 33)) end,
-
     Def.Quad {
         InitCommand = function(self)
-            self:horizalign(left):diffuse(0, 10 / 255, 17 / 255, 0.5):zoomto(item_width, _screen.h / num_visible_items)
+            self:horizalign(center):diffuse(0, 10 / 255, 17 / 255, 0.5):zoomto(item_width, item_height)
         end
     },
     Def.Quad {
         InitCommand = function(self)
-            self:horizalign(left):diffuse(DarkUI() and {1, 1, 1, 0.5} or {10 / 255, 20 / 255, 27 / 255, 1}):zoomto(item_width, (_screen.h / num_visible_items) - 1)
+            self:horizalign(center):diffuse(DarkUI() and {1, 1, 1, 0.5} or {10 / 255, 20 / 255, 27 / 255, 1}):zoomto(item_width, item_height - 1)
             if ThemePrefs.Get("VisualStyle") == "SRPG10" or ThemePrefs.Get("VisualStyle") == "Technique" then
                 self:diffusealpha(0.5)
             end

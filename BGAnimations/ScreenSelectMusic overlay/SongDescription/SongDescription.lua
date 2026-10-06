@@ -1,12 +1,17 @@
 local MusicWheel, SelectedType
 local group_durations = LoadActor("./GroupDurations.lua")
 
--- width of background quad
-local _w = IsUsingWideScreen() and 320 or 310
+-- Match the song banner (418x164 zoomed 0.63, centred at cx,92): same width,
+-- with the panel's top flush against the banner's bottom.
+local BANNER_W, BANNER_H, BANNER_ZOOM, BANNER_Y = 418, 164, 0.63, 92
+local _w = BANNER_W * BANNER_ZOOM
+local _h = 50
+local _y = BANNER_Y + (BANNER_H * BANNER_ZOOM)/2 + _h/2
 
 local af = Def.ActorFrame{
+	-- Shared artist / BPM / length panel, flush under the banner at top centre.
 	OnCommand=function(self)
-		self:xy(_screen.cx - (IsUsingWideScreen() and 170 or 165), _screen.cy - 55)
+		self:xy(_screen.cx, _y)
 	end,
 	DisplayLanguageChangedMessageCommand=function(self) self:playcommand("Set") end,
 	CurrentSongChangedMessageCommand=function(self)    self:playcommand("Set") end,
@@ -20,7 +25,7 @@ local af = Def.ActorFrame{
 -- background Quad for Artist, BPM, and Song Length
 af[#af+1] = Def.Quad{
 	InitCommand=function(self)
-		self:setsize( _w, 50 )
+		self:setsize( _w, _h )
 		self:diffuse(color("#1e282f"))
 
 		if ThemePrefs.Get("RainbowMode") then self:diffusealpha(0.9) end
@@ -32,7 +37,8 @@ af[#af+1] = Def.Quad{
 
 -- ActorFrame for Artist, BPM, and Song length
 af[#af+1] = Def.ActorFrame{
-	InitCommand=function(self) self:xy(-110,-6) end,
+	-- anchor the text block to the left edge of the panel (labels are 44px wide)
+	InitCommand=function(self) self:xy(-_w/2 + 54, -6) end,
 
 	-- ----------------------------------------
 	-- Artist Label
@@ -45,7 +51,7 @@ af[#af+1] = Def.ActorFrame{
 	LoadFont("Common Normal")..{
 		InitCommand=function(self) self:align(0,0):xy(5,-11) end,
 		SetCommand=function(self)
-			local maxwidth = _w - 60
+			local maxwidth = _w - 64
 
 			if GAMESTATE:IsCourseMode() then
 				local course = GAMESTATE:GetCurrentCourse()
@@ -140,13 +146,13 @@ af[#af+1] = Def.ActorFrame{
 		Text=THEME:GetString("SongDescription", "Length"):upper(),
 		InitCommand=function(self)
 			self:align(1,0):diffuse(0.5,0.5,0.5,1)
-			self:x(_w-130):y(10)
+			self:x(_w-100):y(10)
 		end
 	},
 
 	-- Song Duration Value
 	LoadFont("Common Normal")..{
-		InitCommand=function(self) self:align(0,0):xy(_w-130 + 5, 10) end,
+		InitCommand=function(self) self:align(0,0):xy(_w-95, 10) end,
 		SetCommand=function(self)
 			if MusicWheel == nil then MusicWheel = SCREENMAN:GetTopScreen():GetMusicWheel() end
 
@@ -203,7 +209,7 @@ if not GAMESTATE:IsEventMode() then
 	-- long/marathon version bubble graphic and text
 	af[#af+1] = Def.ActorFrame{
 		InitCommand=function(self)
-			self:x( IsUsingWideScreen() and 98 or 92 )
+			self:x( _w/2 - 65 )
 			self:y(-12)
 		end,
 		SetCommand=function(self)

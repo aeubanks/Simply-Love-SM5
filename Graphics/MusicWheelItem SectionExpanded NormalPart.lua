@@ -1,17 +1,14 @@
-local num_items = THEME:GetMetric("MusicWheel", "NumWheelItems")
--- subtract 2 from the total number of MusicWheelItems
--- one MusicWheelItem will be offsceen above, one will be offscreen below
-local num_visible_items = num_items - 2
-
-local item_width = _screen.w / 2.125
+-- Geometry for one MusicWheel item in the U-shaped wheel.
+local item_width = _screen.w / 3.02
+local item_height = _screen.h / 16
+-- section folders live against the left edge of the card
+local folder_x = -item_width/2 + 6
 
 return Def.ActorFrame{
-	-- the MusicWheel is centered via metrics under [ScreenSelectMusic]; offset by a slight amount to the right here
-	InitCommand=function(self) self:x(WideScale(28,33)) end,
 
 	Def.Quad{
 		InitCommand=function(self) 
-			self:horizalign(left):diffuse(color("#000000")):zoomto(item_width, _screen.h/num_visible_items)
+			self:horizalign(center):diffuse(color("#000000")):zoomto(item_width, item_height)
 			if ThemePrefs.Get("VisualStyle") == "Technique" then
 				self:diffusealpha(0.5)
 			end
@@ -19,7 +16,7 @@ return Def.ActorFrame{
 	},
 	Def.Quad{
 		InitCommand=function(self) 
-			self:horizalign(left):diffuse(color("#4c565d")):zoomto(item_width, _screen.h/num_visible_items - 1)
+			self:horizalign(center):diffuse(color("#4c565d")):zoomto(item_width, item_height - 1)
 			if ThemePrefs.Get("VisualStyle") == "Technique" then
 				self:diffusealpha(0.5)
 			end
@@ -28,7 +25,7 @@ return Def.ActorFrame{
 	Def.ActorFrame{
 		Name="FolderStack",
 		InitCommand=function(self)
-			self:x(-3)
+			self:x(folder_x)
 		end,
 		SetCommand=function(self, params)
 			local is_parent = params and params.IsParentSection
@@ -42,9 +39,9 @@ return Def.ActorFrame{
 			end
 			local has_parent = params.ParentSection and params.ParentSection ~= ""
 			if (not is_parent and has_parent) then
-				self:x(8)
+				self:x(folder_x + 11)
 			else
-				self:x(-3)
+				self:x(folder_x)
 			end
 		end,
 

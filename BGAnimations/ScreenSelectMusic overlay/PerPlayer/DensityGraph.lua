@@ -87,20 +87,9 @@ af[#af+1] = Def.ActorFrame{
 			self:playcommand("Show")
 		end
 
-		-- Computing the GrooveStats hash requires parsing the simfile, which is
-		-- expensive. Debounce it so that scrolling through the wheel doesn't
-		-- parse every chart we pass over, only the one we settle on.
-		-- Only needed for GrooveStats score/leaderboard lookups.
-		self:stoptweening()
-		self:sleep(0.4)
-		self:queuecommand("ComputeHash")
-	end,
-	ComputeHashCommand=function(self)
-		local steps = GAMESTATE:GetCurrentSteps(player)
-		if steps then
-			ComputeChartHash(steps, pn)
-			MESSAGEMAN:Broadcast("ChartParsed")
-		end
+		-- HACK: the GrooveStats chart hash (simfile read + parse + SHA1) is
+		-- expensive and unused offline, so don't compute it while browsing.
+		-- It is still computed on ScreenEvaluation for the QR upload pane.
 	end,
 	ShowCommand=function(self)
 		if GAMESTATE:GetCurrentSong() and
